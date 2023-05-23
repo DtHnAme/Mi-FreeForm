@@ -1,17 +1,21 @@
 package com.sunshine.freeform.ui.freeform
 
 import android.app.ActivityOptions
+import android.app.ActivityManager
 import android.app.ActivityOptionsHidden
 import android.app.PendingIntent
 import android.app.PendingIntentHidden
 import android.app.Service
+import android.app.TaskInfoHidden
 import android.content.ComponentName
 import android.content.ContextHidden
 import android.content.Intent
 import android.hardware.display.DisplayManager
+import android.os.Build
 import android.os.IBinder
 import android.os.Parcelable
 import android.os.SystemClock
+import android.view.Display
 import com.sunshine.freeform.utils.ServiceUtils
 import com.sunshine.freeform.utils.ServiceUtils.activityManager
 import dev.rikka.tools.refine.Refine
@@ -37,7 +41,7 @@ class FreeformService: Service(), ScreenListener.ScreenStateListener {
             mConfig.userId = field
         }
 
-    private val mDisplay by lazy {
+    private val mVirtualDisplay by lazy {
         ServiceUtils.displayManager.createVirtualDisplay(
             "MiFreeform@${SystemClock.uptimeMillis()}",
             500,
@@ -47,6 +51,30 @@ class FreeformService: Service(), ScreenListener.ScreenStateListener {
             DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION
         )
     }
+
+    private val mRunningTasks: List<ActivityManager.RunningTaskInfo>
+        get() = activityManager.getTasks(100)
+
+    private val mFocusedRunningTask: ActivityManager.RunningTaskInfo?
+        get() {
+            mRunningTasks.forEach {
+                if (Refine.unsafeCast<TaskInfoHidden>(it).isFocused) {
+                    return it
+                }
+            }
+            return null
+        }
+
+    private val mFreeformRunningTasks: ArrayList<ActivityManager.RunningTaskInfo>
+        get() {
+            val runningTaskInfo = ArrayList<ActivityManager.RunningTaskInfo>()
+            mRunningTasks.forEach {
+                if (Refine.unsafeCast<TaskInfoHidden>(it).displayId == mVirtualDisplay.display.displayId) {
+                    runningTaskInfo.add(it)
+                }
+            }
+            return runningTaskInfo
+        }
 
     override fun onCreate() {
         ServiceUtils.initWithShizuku(this)
@@ -77,8 +105,10 @@ class FreeformService: Service(), ScreenListener.ScreenStateListener {
             ACTION_CALL_INTENT -> {
                 if (mIntent == null)
                     return START_NOT_STICKY
-                val displayId = intent.getIntExtra(EXTRA_DISPLAY_ID, mDisplay.display.displayId)
-                if (startIntent(options = ActivityOptions.makeBasic().setLaunchDisplayId(displayId)) < 0) {
+                if (startIntent(
+                        parcelable = intent.getParcelableExtra(Intent.EXTRA_INTENT),
+                        displayId = intent.getIntExtra(EXTRA_DISPLAY_ID, mVirtualDisplay.display.displayId)
+                    ) < 0) {
                     return START_NOT_STICKY
                 }
             }
@@ -95,12 +125,12 @@ class FreeformService: Service(), ScreenListener.ScreenStateListener {
 
     override fun onDestroy() {
         mFreeformView.destroy()
-        mDisplay.release()
+        mVirtualDisplay.release()
         mScreenListener.unregisterListener()
     }
 
     private fun initFreeformView() {
-        mFreeformView = FreeformView(mConfig, this, mDisplay, mScreenListener)
+        mFreeformView = FreeformView(mConfig, this, mVirtualDisplay, mScreenListener)
         mFreeformView.initSystemService()
         mFreeformView.initConfig()
         mFreeformView.initView()
@@ -116,7 +146,8 @@ class FreeformService: Service(), ScreenListener.ScreenStateListener {
 
     private fun startIntent(
         parcelable: Parcelable? = mIntent,
-        options: ActivityOptions = ActivityOptions.makeBasic().setLaunchDisplayId(mDisplay.display.displayId),
+        displayId: Int = mVirtualDisplay.display.displayId,
+        options: ActivityOptions = ActivityOptions.makeBasic().setLaunchDisplayId(displayId),
         componentName: ComponentName? = mComponentName,
     ): Int {
         var result = -1
@@ -154,7 +185,7 @@ class FreeformService: Service(), ScreenListener.ScreenStateListener {
 
     private fun callPendingIntent(pendingIntent: PendingIntent,
                                   options: ActivityOptions,
-                                  displayId: Int = mDisplay.display.displayId,
+                                  displayId: Int = options.launchDisplayId,
     ): Int {
         val pendingIntentHidden = Refine.unsafeCast<PendingIntentHidden>(pendingIntent)
         val activityOptionsHidden = Refine.unsafeCast<ActivityOptionsHidden>(options).setCallerDisplayId(displayId)
@@ -178,6 +209,32 @@ class FreeformService: Service(), ScreenListener.ScreenStateListener {
     }
 
     override fun onScreenOff() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (mFreeformView.isDestroy) {
+                mFreeformRunningTasks.forEach {
+                    startService(
+                        Intent(this, FreeformService::class.java)
+                            .setAction(ACTION_CALL_INTENT)
+                            .putExtra(Intent.EXTRA_INTENT, it.baseIntent)
+                            .putExtra(EXTRA_DISPLAY_ID, Display.DEFAULT_DISPLAY)
+                    )
+                }
+                startService(
+                    Intent(this, FreeformService::class.java)
+                        .setAction(ACTION_CALL_INTENT)
+                        .putExtra(Intent.EXTRA_INTENT, mFocusedRunningTask!!.baseIntent)
+                        .putExtra(EXTRA_DISPLAY_ID, Display.DEFAULT_DISPLAY)
+                )
+            }
+
+            if (mFreeformRunningTasks.isEmpty()) {
+                stopSelf()
+            }
+        } else {
+            if (mFreeformView.isDestroy) {
+                stopSelf()
+            }
+        }
     }
 
     override fun onUserPresent() {

@@ -1116,6 +1116,7 @@ class FreeformView(
                             context.startService(
                                 Intent(context, FreeformService::class.java)
                                     .setAction(FreeformService.ACTION_CALL_INTENT)
+                                    .putExtra(Intent.EXTRA_INTENT, config.intent)
                                     .putExtra(FreeformService.EXTRA_DISPLAY_ID, defaultDisplay.displayId)
                             )
                             destroy()
@@ -1712,7 +1713,11 @@ class FreeformView(
                         activityTaskManager.moveRootTaskToDisplay(tId, virtualDisplay.display.displayId)
                     else
                         // try relaunch
-                        context.startService(Intent(context, FreeformService::class.java).setAction(FreeformService.ACTION_CALL_INTENT))
+                        context.startService(
+                            Intent(context, FreeformService::class.java)
+                                .setAction(FreeformService.ACTION_CALL_INTENT)
+                                .putExtra(Intent.EXTRA_INTENT, config.intent)
+                        )
                 }
             }
         }
