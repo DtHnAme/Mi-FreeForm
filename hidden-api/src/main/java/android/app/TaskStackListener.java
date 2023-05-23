@@ -26,6 +26,11 @@ public class TaskStackListener extends ITaskStackListener.Stub{
     }
 
     @Override
+    public void onTaskRemoved(int taskId) throws RemoteException {
+
+    }
+
+    @Override
     public void onTaskRemovalStarted(ActivityManager.RunningTaskInfo taskInfo) throws RemoteException {
 
     }

@@ -42,6 +42,7 @@ import kotlinx.coroutines.*
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -73,7 +74,7 @@ class FreeformView(
     var isHidden = false
 
     //小窗中应用的taskId
-    private var taskId = -1
+    private var taskList = ArrayList<Int>()
 
     //叠加层Params
     private val windowLayoutParams = WindowManager.LayoutParams()
@@ -1682,12 +1683,16 @@ class FreeformView(
         override fun onTaskCreated(tId: Int, componentName: ComponentName?) {
             if (config.intent !is Intent) return
             if (componentName?.packageName == config.componentName?.packageName) {
-                taskId = tId
+                taskList.add(tId)
             }
         }
 
+        override fun onTaskRemoved(taskId: Int) {
+            taskList.remove(taskId)
+        }
+
         override fun onTaskRemovalStarted(taskInfo: ActivityManager.RunningTaskInfo) {
-            if (taskInfo.taskId == taskId) {
+            if (taskList.contains(taskInfo.taskId)) {
                 scope.launch(Dispatchers.Main) {
                     destroy()
                 }
@@ -1695,14 +1700,14 @@ class FreeformView(
         }
 
         override fun onTaskDisplayChanged(tId: Int, newDisplayId: Int) {
-            if (tId == taskId && isFloating && newDisplayId == Display.DEFAULT_DISPLAY) {
+            if (taskList.contains(tId) && isFloating && newDisplayId == Display.DEFAULT_DISPLAY) {
                 context.startService(Intent(context, FreeformService::class.java).setAction(FreeformService.ACTION_START_INTENT).putExtra(Intent.EXTRA_INTENT, config.intent))
                 return
             }
-            if (taskId == -1 && newDisplayId == virtualDisplay.display.displayId) taskId = tId
+            if (!taskList.contains(tId) && newDisplayId == virtualDisplay.display.displayId) taskList.add(tId)
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (!isDestroy && tId == taskId && newDisplayId == Display.DEFAULT_DISPLAY) {
+                if (!isDestroy && taskList.contains(tId) && newDisplayId == Display.DEFAULT_DISPLAY) {
                     if (config.useSuiRefuseToFullScreen)
                         activityTaskManager.moveRootTaskToDisplay(tId, virtualDisplay.display.displayId)
                     else
@@ -1712,20 +1717,11 @@ class FreeformView(
             }
         }
 
-        override fun onTaskMovedToFront(taskInfo: ActivityManager.RunningTaskInfo) {
-            runCatching {
-                val userId = taskInfo::class.java.getField("userId").get(taskInfo)
-                if (taskInfo.baseActivity!!.packageName == config.componentName!!.packageName && userId == config.userId) {
-                    taskId = taskInfo.taskId
-                }
-            }
-        }
-
         override fun onTaskRequestedOrientationChanged(tId: Int, requestedOrientation: Int) {
             //q220902.2 某些竖屏软件也会横屏，经查，会有一个requestedOrientation为2的情况，将其转为1
             var tempRotation = requestedOrientation
             if (tempRotation != VIRTUAL_DISPLAY_ROTATION_PORTRAIT && tempRotation != VIRTUAL_DISPLAY_ROTATION_LANDSCAPE) tempRotation = VIRTUAL_DISPLAY_ROTATION_PORTRAIT
-            if (taskId == tId && tempRotation != virtualDisplayRotation) {
+            if (taskList.contains(tId) && tempRotation != virtualDisplayRotation) {
                 virtualDisplayRotation = tempRotation
                 scope.launch(Dispatchers.Main) {
                     onFreeFormRotationChanged()
@@ -1737,7 +1733,7 @@ class FreeformView(
         override fun onActivityRequestedOrientationChanged(tId: Int, requestedOrientation: Int) {
             var tempRotation = requestedOrientation
             if (tempRotation != VIRTUAL_DISPLAY_ROTATION_PORTRAIT && tempRotation != VIRTUAL_DISPLAY_ROTATION_LANDSCAPE) tempRotation = VIRTUAL_DISPLAY_ROTATION_PORTRAIT
-            if (taskId == tId && tempRotation != virtualDisplayRotation) {
+            if (taskList.contains(tId) && tempRotation != virtualDisplayRotation) {
                 virtualDisplayRotation = tempRotation
                 scope.launch(Dispatchers.Main) {
                     onFreeFormRotationChanged()
