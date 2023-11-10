@@ -4,7 +4,6 @@ import android.content.Context;
 import android.os.Binder;
 import android.os.Build;
 import android.util.Log;
-import android.view.IWindowManager;
 
 import com.android.server.SystemServer;
 import com.android.server.wm.WindowManagerService;

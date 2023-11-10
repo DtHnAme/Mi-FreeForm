@@ -6,10 +6,10 @@ import android.app.INotificationManager;
 import android.content.Context;
 import android.os.Build;
 import android.os.ServiceManager;
-import android.view.IWindowManager;
 
 import com.android.internal.statusbar.IStatusBarService;
 import com.android.server.input.InputManagerService;
+import com.android.server.wm.WindowManagerService;
 
 import io.sunshine0523.freeform.util.MLog;
 
@@ -21,7 +21,7 @@ public class SystemServiceHolder {
     public static IActivityManager activityManager;
     //For Q,R,S,T
     public static IActivityTaskManager activityTaskManager;
-    public static IWindowManager windowManager;
+    public static WindowManagerService windowManagerService;
     public static IStatusBarService statusBarService;
     public static INotificationManager notificationManager;
 
@@ -38,7 +38,7 @@ public class SystemServiceHolder {
             waitSystemService("notification");
             activityManager = IActivityManager.Stub.asInterface(ServiceManager.getService("activity"));
             inputManagerService = (InputManagerService) ServiceManager.getService("input");
-            windowManager = IWindowManager.Stub.asInterface(ServiceManager.getService("window"));
+            windowManagerService = (WindowManagerService) ServiceManager.getService("window");
             statusBarService = IStatusBarService.Stub.asInterface(ServiceManager.getService("statusbar"));
             notificationManager = INotificationManager.Stub.asInterface(ServiceManager.getService("notification"));
             callback.allAdded();

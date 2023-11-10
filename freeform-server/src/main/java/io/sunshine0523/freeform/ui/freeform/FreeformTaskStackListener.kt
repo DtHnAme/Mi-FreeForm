@@ -110,7 +110,7 @@ class FreeformTaskStackListener(
                     taskId = taskInfo.taskId
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         if (FreeformWindowManager.settings.showImeInFreeform) {
-                            SystemServiceHolder.windowManager.setDisplayImePolicy(displayId, 0)
+                            SystemServiceHolder.windowManagerService.setDisplayImePolicy(displayId, 0)
                         }
 //                        else {
 //                            SystemServiceHolder.windowManager.setDisplayImePolicy(displayId, 1)

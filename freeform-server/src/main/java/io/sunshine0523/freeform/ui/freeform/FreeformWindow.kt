@@ -225,7 +225,7 @@ class FreeformWindow(
             format = PixelFormat.RGBA_8888
             windowAnimations = android.R.style.Animation_Dialog
         }
-        SystemServiceHolder.windowManager.watchRotation(rotationWatcher, Display.DEFAULT_DISPLAY)
+        SystemServiceHolder.windowManagerService.watchRotation(rotationWatcher, Display.DEFAULT_DISPLAY)
         runCatching {
             windowManager.addView(freeformLayout, windowParams)
             FreeformWindowManager.topWindow = getFreeformId()
@@ -350,7 +350,7 @@ class FreeformWindow(
         }.onFailure { exception ->
             MLog.e(TAG, "removeTask failed $exception")
         }
-        SystemServiceHolder.windowManager.removeRotationWatcher(rotationWatcher)
+        SystemServiceHolder.windowManagerService.removeRotationWatcher(rotationWatcher)
         FreeformWindowManager.removeWindow(getFreeformId())
     }
 }

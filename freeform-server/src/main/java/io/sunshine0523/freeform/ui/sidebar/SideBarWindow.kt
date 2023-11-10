@@ -32,7 +32,7 @@ class SideBarWindow(
 
     init {
         addSideBarView()
-        SystemServiceHolder.windowManager.watchRotation(this, Display.DEFAULT_DISPLAY)
+        SystemServiceHolder.windowManagerService.watchRotation(this, Display.DEFAULT_DISPLAY)
     }
 
     override fun onRotationChanged(rotation: Int) {
@@ -106,7 +106,7 @@ class SideBarWindow(
     }
 
     fun destroy() {
-        SystemServiceHolder.windowManager.removeRotationWatcher(this)
+        SystemServiceHolder.windowManagerService.removeRotationWatcher(this)
         uiHandler.post {
             runCatching {
                 windowManager.removeViewImmediate(leftView)
