@@ -3,6 +3,8 @@ package com.android.server.wm;
 import android.view.IRotationWatcher;
 
 public class WindowManagerService {
+    public RootWindowContainer mRoot;
+
     public int watchRotation(IRotationWatcher watcher, int displayId) {
         throw new RuntimeException("Stub!");
     }

@@ -1,6 +1,7 @@
 package io.sunshine0523.freeform.ui.freeform
 
 import android.annotation.SuppressLint
+import android.app.TaskInfoHidden
 import android.content.Context
 import android.graphics.PixelFormat
 import android.graphics.SurfaceTexture
@@ -16,6 +17,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
+import dev.rikka.tools.refine.Refine
 import io.sunshine0523.freeform.IMiFreeformDisplayCallback
 import io.sunshine0523.freeform.service.MiFreeformServiceHolder
 import io.sunshine0523.freeform.service.SystemServiceHolder
@@ -341,7 +343,20 @@ class FreeformWindow(
             runCatching { windowManager.removeViewImmediate(freeformLayout) }.onFailure { exception -> Log.e(TAG, "removeView failed $exception") }
         }
         if (removeTask) runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val tasks =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                        SystemServiceHolder.activityTaskManager.getTasks(100, false, false, displayId)
+                    else
+                        SystemServiceHolder.activityTaskManager.getTasks(100, false, false)
+                for (i in tasks.indices) {
+                    val info = Refine.unsafeCast<TaskInfoHidden>(tasks[i])
+                    if (info.displayId != Display.DEFAULT_DISPLAY) {
+                        SystemServiceHolder.windowManagerService.mRoot.moveRootTaskToDisplay(info.taskId, Display.DEFAULT_DISPLAY, false)
+                    }
+                }
+            // TODO: Support legacy version of Android (10-11)
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 SystemServiceHolder.activityTaskManager.removeTask(freeformTaskStackListener!!.taskId)
             } else {
                 SystemServiceHolder.activityManager.removeTask(freeformTaskStackListener!!.taskId)
